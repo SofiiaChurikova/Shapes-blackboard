@@ -31,39 +31,6 @@ public:
     };
 };
 
-class Triangle : public Shape {
-private:
-    int x, y, height;
-
-public:
-    Triangle(int x, int y, int height) : x(x), y(y), height(height) {
-    }
-
-    void draw(vector<vector<char> > &grid) const override {
-        if (height <= 0) return;;
-        for (int i = 0; i < height; ++i) {
-            int leftMost = x - i;
-            int rightMost = x + i;
-            int posY = y + i;
-            if (posY < BOARD_HEIGHT) {
-                if (leftMost >= 0 && leftMost < BOARD_WIDTH) {
-                    grid[posY][leftMost] = '*';
-                    if (rightMost >= 0 && rightMost < BOARD_WIDTH && leftMost != rightMost) {
-                        grid[posY][rightMost] = '*';
-                    }
-                }
-            }
-        }
-        for (int j = 0; j < 2 * height - 1; ++j) {
-            int baseX = x - height + 1 + j;
-            int baseY = y + height - 1;
-            if (baseX >= 0 && baseX < BOARD_WIDTH && baseY < BOARD_HEIGHT) {
-                grid[baseY][baseX] = '*';
-            }
-        }
-    }
-};
-
 class Rectangle : public Shape {
 private:
     int x, y, height, width;
@@ -118,13 +85,72 @@ public:
 class Line : public Shape {
 private:
     int x1, y1, x2, y2;
+    bool isTriangle;
 
 public:
-    Line(int x1, int y1, int x2, int y2) : x1(x1), y1(y1), x2(x2), y2(y2) {
+    Line(int x1, int y1, int x2, int y2, bool isTriangle = false)
+        : x1(x1), y1(y1), x2(x2), y2(y2), isTriangle(isTriangle) {
     }
 
     void draw(vector<vector<char> > &grid) const override {
-        // i'll make it with slope
+        int deltaX = x2 - x1;
+        int deltaY = y2 - y1;
+        int steps = max(abs(deltaX), abs(deltaY));
+        float xIncrement = deltaX / static_cast<float>(steps);
+        float yIncrement = deltaY / static_cast<float>(steps);
+        float x = x1;
+        float y = y1;
+
+        int prevX;
+        int prevY;
+
+        for (int i = 0; i <= steps; ++i) {
+            int gridX = round(x);
+            int gridY = round(y);
+
+            if (isTriangle) {
+                if (gridX == prevX && gridY == prevY) {
+                    x += xIncrement;
+                    y += yIncrement;
+                    continue;
+                }
+            } else {
+                if ((gridX == prevX && gridY == prevY) || (gridX == prevX || gridY == prevY)) {
+                    x += xIncrement;
+                    y += yIncrement;
+                    continue;
+                }
+            }
+
+            if (gridX >= 0 && gridX < BOARD_WIDTH && gridY >= 0 && gridY < BOARD_HEIGHT) {
+                grid[gridY][gridX] = '*';
+            }
+
+            prevX = gridX;
+            prevY = gridY;
+
+            x += xIncrement;
+            y += yIncrement;
+        }
+    }
+};
+
+class Triangle : public Shape {
+private:
+    int x1, y1, x2, y2, x3, y3;
+
+public:
+    Triangle(int x1, int y1, int x2, int y2, int x3, int y3)
+        : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3) {
+    }
+
+    void draw(vector<vector<char> > &grid) const override {
+        Line line1(x1, y1, x2, y2, true);
+        line1.draw(grid);
+        Line line2(x2, y2, x3, y3, true);
+        line2.draw(grid);
+        Line line3(x3, y3, x1, y1, true);
+        line3.draw(grid);
     }
 };
 
@@ -151,12 +177,14 @@ public:
             } else if (command == "shapes") {
                 continue;
             } else if (command == "add") {
-                // Triangle triangle(10, 1, 5);
+                // Triangle triangle(10, 5, 20, 15, 15, 20);
                 // triangle.draw(board.grid);
                 // Rectangle rectangle(3, 2, 5, 6);
                 // rectangle.draw(board.grid);
-                Circle circle(3, 2, 4);
-                circle.draw(board.grid);
+                // Circle circle(20, 20, 5);;
+                // circle.draw(board.grid);
+                // Line line(5, 3, 15, 8);
+                // line.draw(board.grid);
             } else if (command == "undo") {
                 continue;
             } else if (command == "clear") {

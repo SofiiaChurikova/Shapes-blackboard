@@ -1,7 +1,9 @@
 #include <iostream>
+#include <map>
 #include <vector>
 #include <sstream>
 #include <math.h>
+#include <stack>
 
 using namespace std;
 const int BOARD_WIDTH = 80;
@@ -21,11 +23,19 @@ struct Board {
             cout << "\n";
         }
     }
+    void clear() {
+        for (auto &row: grid) {
+            for (char &c: row) {
+                c = ' ';
+            }
+        }
+    }
 };
 
 class Shape {
 public:
     virtual void draw(vector<vector<char> > &grid) const = 0;
+    virtual void print() const = 0;
 
     virtual ~Shape() {
     };
@@ -58,6 +68,9 @@ public:
             }
         }
     }
+    void print() const override {
+        cout << "Rectangle x: " << x << " y: " << y << " height: " << height << " width: " << width << endl;
+    }
 };
 
 // need to implement area restriction
@@ -79,6 +92,9 @@ public:
                 }
             }
         }
+    }
+    void print() const override {
+        cout << "Circle x: " << x << " y: " << y << " radius: " << radius << endl;
     }
 };
 
@@ -133,6 +149,9 @@ public:
             y += yIncrement;
         }
     }
+    void print() const override {
+        cout << "Line x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << endl;
+    }
 };
 
 class Triangle : public Shape {
@@ -152,14 +171,116 @@ public:
         Line line3(x3, y3, x1, y1, true);
         line3.draw(grid);
     }
+    void print() const override {
+        cout << "Triangle x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " x3: " << x3 << " y3: " <<
+                y3 << endl;;
+    }
 };
 
+class ShapeCommands {
+private:
+    Board board;
+    map<int, shared_ptr<Shape> > shapes;
+    int ID = 1;
+    stack<int> shapeStack;
+
+public:
+    void listShapes() const {
+        if (shapes.empty()) {
+            cout << "No shapes added." << endl;
+            return;
+        }
+        for (const auto &shape: shapes) {
+            cout << "ID: " << shape.first << ", ";
+            shape.second->print();
+        }
+    }
+
+    void allShapes() const {
+        cout
+                << "Rectangle: x, y, height, width \n"
+                << "Circle: x, y, radius \n"
+                << "Triangle: x1, y1, x2, y2, x3, y3 \n"
+                << "Line: x1, y1, x2, y2 " << endl;
+    }
+    void addShape(shared_ptr<Shape>shape) {
+        shapes[ID] = shape;
+        shapeStack.push(ID);
+        ID++;
+    }
+
+    void drawBoard() {
+        board.clear();
+        if (!shapes.empty()) {
+            for (const auto &shape : shapes) {
+                shape.second->draw(board.grid);
+            }
+        }
+        board.print();
+    }
+
+    void undoShape() {
+        if(!shapeStack.empty()) {
+            int lastShape = shapeStack.top();
+            shapeStack.pop();
+            shapes.erase(lastShape);
+            ID--;
+        }
+        else {
+            cout << "There is nothing to undo!" << endl;
+        }
+    }
+
+    void clearShapes() {
+        board.clear();
+        shapes.clear();
+        while (!shapeStack.empty()) {
+            shapeStack.pop();
+        }
+        ID = 1;
+    }
+};
+class ShapeParser {
+private:
+    ShapeCommands& shapeCommands;
+public:
+    ShapeParser(ShapeCommands& sc) : shapeCommands(sc) {}
+    void parseAddShapes(istringstream& iss) {
+        string shapeType;
+        iss >> shapeType;
+        if (shapeType == "rectangle") {
+            int x, y, height, width;
+            iss >> x >> y >> height >> width;
+            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width));
+        }
+        else if (shapeType == "circle") {
+            int x, y, radius;
+            iss >> x >> y >> radius;
+            shapeCommands.addShape(make_shared<Circle>(x, y, radius));
+        }
+        else if (shapeType == "triangle") {
+            int x1, y1, x2, y2, x3, y3;
+            iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3;
+            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3));
+        }
+        else if (shapeType == "line") {
+            int x1, y1, x2, y2;
+            iss >> x1 >> y1 >> x2 >> y2;
+            shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2, false));
+        }
+    }
+
+};
 
 class CommandsExecution {
 private:
     Board board;
+    ShapeCommands shapeCommands;
+    ShapeParser shapeParser;
 
 public:
+    CommandsExecution() : shapeParser(shapeCommands) {}
+
     void inputReader() {
         string input;
 
@@ -171,24 +292,17 @@ public:
             iss >> command;
 
             if (command == "draw") {
-                board.print();
+                shapeCommands.drawBoard();
             } else if (command == "list") {
-                continue;
+                shapeCommands.listShapes();
             } else if (command == "shapes") {
-                continue;
+                shapeCommands.allShapes();
             } else if (command == "add") {
-                // Triangle triangle(10, 5, 20, 15, 15, 20);
-                // triangle.draw(board.grid);
-                // Rectangle rectangle(3, 2, 5, 6);
-                // rectangle.draw(board.grid);
-                // Circle circle(20, 20, 5);;
-                // circle.draw(board.grid);
-                // Line line(5, 3, 15, 8);
-                // line.draw(board.grid);
-            } else if (command == "undo") {
-                continue;
+                shapeParser.parseAddShapes(iss);
+            } else if (command == "undo"){
+                shapeCommands.undoShape();
             } else if (command == "clear") {
-                continue;
+                shapeCommands.clearShapes();
             } else if (command == "save") {
                 continue;
             } else if (command == "load") {

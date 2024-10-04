@@ -1,0 +1,11 @@
+ID: 1 Type: Circle 5 5 8
+ID: 2 Type: Rectangle 15 20 10 5
+ID: 3 Type: Line 3 5 10 15
+ID: 4 Type: Triangle 55 10 44 15 70 20
+ID: 5 Type: Circle 20 20 5
+ID: 6 Type: Line 5 10 40 20
+ID: 7 Type: Rectangle 55 20 20 10
+ID: 8 Type: Rectangle 55 10 10 5
+ID: 9 Type: Rectangle 20 5 20 10
+ID: 10 Type: Circle 20 8 6
+ID: 11 Type: Triangle 10 15 10 4 5 9

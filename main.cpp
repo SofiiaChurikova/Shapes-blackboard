@@ -2,9 +2,9 @@
 #include <map>
 #include <vector>
 #include <sstream>
-#include <math.h>
+#include <cmath>
 #include <stack>
-
+#include <fstream>
 using namespace std;
 const int BOARD_WIDTH = 80;
 const int BOARD_HEIGHT = 25;
@@ -23,6 +23,7 @@ struct Board {
             cout << "\n";
         }
     }
+
     void clear() {
         for (auto &row: grid) {
             for (char &c: row) {
@@ -35,7 +36,15 @@ struct Board {
 class Shape {
 public:
     virtual void draw(vector<vector<char> > &grid) const = 0;
+
     virtual void print() const = 0;
+
+    virtual string getType() const = 0;
+
+    virtual string getParams() const = 0;
+
+    virtual bool validBorder() const = 0;
+
 
     virtual ~Shape() {
     };
@@ -68,12 +77,25 @@ public:
             }
         }
     }
+
     void print() const override {
         cout << "Rectangle x: " << x << " y: " << y << " height: " << height << " width: " << width << endl;
     }
+
+    string getType() const override {
+        return "Rectangle";
+    }
+
+    string getParams() const override {
+        return to_string(x) + " " + to_string(y) + " " + to_string(height) + " " + to_string(width);
+    }
+
+    bool validBorder() const override {
+        return (x < BOARD_WIDTH && x + width > 0 &&
+                y < BOARD_HEIGHT && y + height > 0);
+    }
 };
 
-// need to implement area restriction
 class Circle : public Shape {
 private:
     int x, y;
@@ -93,8 +115,24 @@ public:
             }
         }
     }
+
     void print() const override {
         cout << "Circle x: " << x << " y: " << y << " radius: " << radius << endl;
+    }
+
+    string getType() const override {
+        return "Circle";
+    }
+
+    string getParams() const override {
+        return to_string(x) + " " + to_string(y) + " " + to_string(radius);
+    }
+
+    bool validBorder() const override {
+        bool withinBoard = radius * 2 <= BOARD_WIDTH && radius * 2 <= BOARD_HEIGHT;
+        bool partOfBoard = (x + radius >= 0 && x - radius < BOARD_WIDTH &&
+                            y + radius >= 0 && y - radius < BOARD_HEIGHT);
+        return withinBoard && partOfBoard;
     }
 };
 
@@ -149,8 +187,22 @@ public:
             y += yIncrement;
         }
     }
+
     void print() const override {
         cout << "Line x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << endl;
+    }
+
+    string getType() const override {
+        return "Line";
+    }
+
+    string getParams() const override {
+        return to_string(x1) + ' ' + to_string(y1) + ' ' + to_string(x2) + ' ' + to_string(y2);
+    }
+
+    bool validBorder() const override {
+        return (x1 < BOARD_WIDTH && x1 >= 0 && y1 < BOARD_HEIGHT && y1 >= 0) ||
+               (x2 < BOARD_WIDTH && x2 >= 0 && y2 < BOARD_HEIGHT && y2 >= 0);
     }
 };
 
@@ -163,6 +215,12 @@ public:
         : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3) {
     }
 
+    bool validBorder() const override {
+        return (x1 < BOARD_WIDTH && x1 >= 0 && y1 < BOARD_HEIGHT && y1 >= 0) ||
+               (x2 < BOARD_WIDTH && x2 >= 0 && y2 < BOARD_HEIGHT && y2 >= 0) ||
+               (x3 < BOARD_WIDTH && x3 >= 0 && y3 < BOARD_HEIGHT && y3 >= 0);
+    }
+
     void draw(vector<vector<char> > &grid) const override {
         Line line1(x1, y1, x2, y2, true);
         line1.draw(grid);
@@ -171,9 +229,19 @@ public:
         Line line3(x3, y3, x1, y1, true);
         line3.draw(grid);
     }
+
     void print() const override {
         cout << "Triangle x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " x3: " << x3 << " y3: " <<
                 y3 << endl;;
+    }
+
+    string getType() const override {
+        return "Triangle";
+    }
+
+    string getParams() const override {
+        return to_string(x1) + ' ' + to_string(y1) + ' ' + to_string(x2) + ' ' + to_string(y2) + ' ' + to_string(x3) +
+               ' ' + to_string(y3);
     }
 };
 
@@ -203,7 +271,19 @@ public:
                 << "Triangle: x1, y1, x2, y2, x3, y3 \n"
                 << "Line: x1, y1, x2, y2 " << endl;
     }
-    void addShape(shared_ptr<Shape>shape) {
+
+    void addShape(shared_ptr<Shape> shape) {
+        for (const auto &newShape: shapes) {
+            if (newShape.second->getType() == shape->getType() && newShape.second->getParams() == shape->getParams()) {
+                cout << "Shape " << shape->getType() << " with params " << shape->getParams() << " already exists." <<
+                        endl;
+                return;
+            }
+        }
+        if (!shape->validBorder()) {
+            cout << "Shape outside of the board." << endl;
+            return;
+        }
         shapes[ID] = shape;
         shapeStack.push(ID);
         ID++;
@@ -212,7 +292,7 @@ public:
     void drawBoard() {
         board.clear();
         if (!shapes.empty()) {
-            for (const auto &shape : shapes) {
+            for (const auto &shape: shapes) {
                 shape.second->draw(board.grid);
             }
         }
@@ -220,13 +300,12 @@ public:
     }
 
     void undoShape() {
-        if(!shapeStack.empty()) {
+        if (!shapeStack.empty()) {
             int lastShape = shapeStack.top();
             shapeStack.pop();
             shapes.erase(lastShape);
             ID--;
-        }
-        else {
+        } else {
             cout << "There is nothing to undo!" << endl;
         }
     }
@@ -239,37 +318,134 @@ public:
         }
         ID = 1;
     }
+
+    const map<int, shared_ptr<Shape> > &getShapes() const {
+        return shapes;
+    }
 };
+
 class ShapeParser {
 private:
-    ShapeCommands& shapeCommands;
+    ShapeCommands &shapeCommands;
+
 public:
-    ShapeParser(ShapeCommands& sc) : shapeCommands(sc) {}
-    void parseAddShapes(istringstream& iss) {
-        string shapeType;
-        iss >> shapeType;
-        if (shapeType == "rectangle") {
-            int x, y, height, width;
-            iss >> x >> y >> height >> width;
-            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width));
-        }
-        else if (shapeType == "circle") {
-            int x, y, radius;
-            iss >> x >> y >> radius;
-            shapeCommands.addShape(make_shared<Circle>(x, y, radius));
-        }
-        else if (shapeType == "triangle") {
-            int x1, y1, x2, y2, x3, y3;
-            iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3;
-            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3));
-        }
-        else if (shapeType == "line") {
-            int x1, y1, x2, y2;
-            iss >> x1 >> y1 >> x2 >> y2;
-            shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2, false));
-        }
+    ShapeParser(ShapeCommands &sc) : shapeCommands(sc) {
     }
 
+    void parseAddShapes(istringstream &iss) {
+        string shapeType;
+        iss >> shapeType;
+
+        if (shapeType == "rectangle" || shapeType == "Rectangle") {
+            int x, y, height, width;
+            if (!(iss >> x >> y >> height >> width)) {
+                throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
+            }
+            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width));
+        } else if (shapeType == "circle" || shapeType == "Circle") {
+            int x, y, radius;
+            if (!(iss >> x >> y >> radius)) {
+                throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
+            }
+            shapeCommands.addShape(make_shared<Circle>(x, y, radius));
+        } else if (shapeType == "line" || shapeType == "Line") {
+            int x1, y1, x2, y2;
+            if (!(iss >> x1 >> y1 >> x2 >> y2)) {
+                throw invalid_argument("Invalid number of arguments for Line. Expected 4.");
+            }
+            shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2));
+        } else if (shapeType == "triangle" || shapeType == "Triangle") {
+            int x1, y1, x2, y2, x3, y3;
+            if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
+                throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
+            }
+            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3));
+        } else {
+            throw invalid_argument("Irregular shape.");
+        }
+    }
+};
+
+class FileParser {
+private:
+    ShapeParser shapeParser;
+    ShapeCommands &shapeCommands;
+
+public:
+    FileParser(ShapeCommands &sc) : shapeCommands(sc), shapeParser(sc) {
+    }
+
+    void saveShapes(const string &filePath) {
+        ofstream file(filePath);
+        if (!file.is_open()) {
+            cout << "Failed to open file for saving." << endl;
+            return;
+        }
+        for (const auto &shape: shapeCommands.getShapes()) {
+            int ID = shape.first;
+            shared_ptr<Shape> sh = shape.second;
+            file << "ID: " << ID << " Type: " << sh->getType() << ' ' << sh->getParams() << endl;
+        }
+        file.close();
+    }
+
+    void loadBoard(const string &filePath) {
+        cout <<
+                "Be careful! If there are any figures on the board, they will be cleared, even if an error occurs. Do you "
+                "want to continue?" << endl;
+        string answer;
+        getline(cin, answer);
+
+        if (answer != "yes") {
+            cout << "Cancel the command" << endl;
+            return;
+        }
+
+        shapeCommands.clearShapes();
+        ifstream file(filePath);
+        if (!file.is_open()) {
+            cout << "Failed to open file for loading." << endl;
+            return;
+        }
+
+        string line;
+        bool isValid = true;
+        while (getline(file, line)) {
+            istringstream iss(line);
+            string idText, typeText, shapeType;
+            int id;
+
+            if (!(iss >> idText >> id >> typeText >> shapeType)) {
+                cout << "Invalid file format: " << line << endl;
+                isValid = false;
+                break;
+            }
+            string shapeParams;
+            getline(iss, shapeParams);
+            if (shapeParams.empty()) {
+                cout << "Invalid shape parameters in file: " << line << endl;
+                isValid = false;
+                break;
+            }
+
+            try {
+                istringstream shapeCommand(shapeType + " " + shapeParams);
+                shapeParser.parseAddShapes(shapeCommand);
+            } catch (const exception &e) {
+                cout << "Error: " << e.what() << endl;
+                isValid = false;
+                break;
+            }
+        }
+
+        if (!isValid) {
+            shapeCommands.clearShapes();
+        } else {
+            cout << "Board loaded from " << filePath << endl;
+        }
+
+        file.close();
+    }
 };
 
 class CommandsExecution {
@@ -277,9 +453,12 @@ private:
     Board board;
     ShapeCommands shapeCommands;
     ShapeParser shapeParser;
+    FileParser fileParser;
 
 public:
-    CommandsExecution() : shapeParser(shapeCommands) {}
+    CommandsExecution()
+        : shapeParser(shapeCommands), fileParser(shapeCommands) {
+    }
 
     void inputReader() {
         string input;
@@ -291,26 +470,36 @@ public:
             istringstream iss(input);
             iss >> command;
 
-            if (command == "draw") {
-                shapeCommands.drawBoard();
-            } else if (command == "list") {
-                shapeCommands.listShapes();
-            } else if (command == "shapes") {
-                shapeCommands.allShapes();
-            } else if (command == "add") {
-                shapeParser.parseAddShapes(iss);
-            } else if (command == "undo"){
-                shapeCommands.undoShape();
-            } else if (command == "clear") {
-                shapeCommands.clearShapes();
-            } else if (command == "save") {
-                continue;
-            } else if (command == "load") {
-                continue;
-            } else if (command == "stop") {
-                break;
-            } else {
-                cout << "Unknown command: " << command << endl;
+            try {
+                if (command == "draw") {
+                    shapeCommands.drawBoard();
+                } else if (command == "list") {
+                    shapeCommands.listShapes();
+                } else if (command == "shapes") {
+                    shapeCommands.allShapes();
+                } else if (command == "add") {
+                    shapeParser.parseAddShapes(iss);
+                } else if (command == "undo") {
+                    shapeCommands.undoShape();
+                } else if (command == "clear") {
+                    shapeCommands.clearShapes();
+                } else if (command == "save") {
+                    string filePath;
+                    iss >> filePath;
+                    fileParser.saveShapes(filePath);
+                } else if (command == "load") {
+                    string filePath;
+                    iss >> filePath;
+                    fileParser.loadBoard(filePath);
+                } else if (command == "stop") {
+                    break;
+                } else {
+                    cout << "Unknown command: " << command << endl;
+                }
+            } catch (const invalid_argument &e) {
+                cout << "Error: " << e.what() << endl;
+            } catch (const exception &e) {
+                cout << "Unexpected error: " << e.what() << endl;
             }
         }
     }

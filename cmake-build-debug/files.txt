@@ -1,1 +1,1 @@
-ID: 1 Type: Rectangle 20 10 5 10
+ID: 1 Type: Lalapum 20 10 5 10

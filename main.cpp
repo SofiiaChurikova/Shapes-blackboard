@@ -336,10 +336,15 @@ public:
         string shapeType;
         iss >> shapeType;
 
+        string extraArg;
+
         if (shapeType == "rectangle" || shapeType == "Rectangle") {
             int x, y, height, width;
             if (!(iss >> x >> y >> height >> width)) {
                 throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
+            }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
             }
             shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width));
         } else if (shapeType == "circle" || shapeType == "Circle") {
@@ -347,11 +352,17 @@ public:
             if (!(iss >> x >> y >> radius)) {
                 throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
             }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Circle. Expected 3.");
+            }
             shapeCommands.addShape(make_shared<Circle>(x, y, radius));
         } else if (shapeType == "line" || shapeType == "Line") {
             int x1, y1, x2, y2;
             if (!(iss >> x1 >> y1 >> x2 >> y2)) {
                 throw invalid_argument("Invalid number of arguments for Line. Expected 4.");
+            }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Line. Expected 4.");
             }
             shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2));
         } else if (shapeType == "triangle" || shapeType == "Triangle") {
@@ -359,9 +370,12 @@ public:
             if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
                 throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
             }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Triangle. Expected 6.");
+            }
             shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3));
         } else {
-            throw invalid_argument("Irregular shape.");
+            throw invalid_argument("Unknown shape.");
         }
     }
 };

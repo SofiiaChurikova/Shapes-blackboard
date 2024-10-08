@@ -9,6 +9,20 @@ using namespace std;
 const int BOARD_WIDTH = 80;
 const int BOARD_HEIGHT = 25;
 
+enum FillOption { FILL, FRAME };
+
+string fillOptionType(FillOption fillOption) {
+    switch (fillOption) {
+        case FILL:
+            return "FILL";
+        case FRAME:
+            return "FRAME";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+
 struct Board {
     vector<vector<char> > grid;
 
@@ -53,10 +67,11 @@ public:
 class Rectangle : public Shape {
 private:
     int x, y, height, width;
+    FillOption fillOption;
 
 public:
-    Rectangle(int x, int y, int height, int width)
-        : x(x), y(y), height(height), width(width) {
+    Rectangle(int x, int y, int height, int width, FillOption fillOption)
+        : x(x), y(y), height(height), width(width), fillOption(fillOption) {
     }
 
     void draw(vector<vector<char> > &grid) const override {
@@ -76,10 +91,20 @@ public:
                 grid[y + j][x + width - 1] = '*';
             }
         }
+        if (fillOption == FILL) {
+            for (int i = 1; i <= width - 1; ++i) {
+                for (int j = 1; j <= height - 1; ++j) {
+                    if (y + j >= 0 && y + j < BOARD_HEIGHT && x + i >= 0 && x + i < BOARD_HEIGHT) {
+                        grid[y + j][x + i] = '*';
+                    }
+                }
+            }
+        }
     }
 
     void print() const override {
-        cout << "Rectangle x: " << x << " y: " << y << " height: " << height << " width: " << width << endl;
+        cout << "Rectangle x: " << x << " y: " << y << " height: " << height << " width: " << width
+                << " Fill option: " << fillOptionType(fillOption) << endl;
     }
 
     string getType() const override {
@@ -100,24 +125,32 @@ class Circle : public Shape {
 private:
     int x, y;
     int radius;
+    FillOption fillOption;
 
 public:
-    Circle(int x, int y, int radius) : x(x), y(y), radius(radius) {
+    Circle(int x, int y, int radius, FillOption fillOption) : x(x), y(y), radius(radius), fillOption(fillOption) {
     }
 
     void draw(vector<vector<char> > &grid) const override {
         for (int i = 0; i < BOARD_WIDTH; ++i) {
             for (int j = 0; j < BOARD_HEIGHT; ++j) {
-                double distance = sqrt(pow(i - x, 2) + pow(j - y, 2));
-                if (fabs(distance - radius) < 0.5) {
-                    grid[j][i] = '*';
+                double distance = sqrt(pow(i - x, 2) + pow((j - y) * 2, 2));
+                if (fillOption == FRAME) {
+                    if (fabs(distance - radius) < 0.5) {
+                        grid[j][i] = '*';
+                    }
+                } else if (fillOption == FILL) {
+                    if (distance <= radius) {
+                        grid[j][i] = '*';
+                    }
                 }
             }
         }
     }
 
     void print() const override {
-        cout << "Circle x: " << x << " y: " << y << " radius: " << radius << endl;
+        cout << "Circle x: " << x << " y: " << y << " radius: " << radius << " Fill option: " <<
+                fillOptionType(fillOption) << endl;
     }
 
     string getType() const override {
@@ -209,10 +242,59 @@ public:
 class Triangle : public Shape {
 private:
     int x1, y1, x2, y2, x3, y3;
+    FillOption fillOption;
+
+    bool edgeIntersecting(int y1, int y2, int y) const {
+        return (y1 <= y && y2 > y) || (y2 <= y && y1 > y);
+    }
+
+    int intersectionX(int y1, int y2, int x1, int x2, int y) const {
+        return x1 + (x2 - x1) * (y - y1) / (y2 - y1);
+    }
+
+    void scanlineAlgorithm(vector<vector<char> > &grid) const {
+        int yMin = min({y1, y2, y3});
+        int yMax = max({y1, y2, y3});
+
+        for (int y = yMin; y <= yMax; ++y) {
+            vector<int> intersections;
+            if (edgeIntersecting(y1, y2, y)) {
+                intersections.push_back(intersectionX(y1, y2, x1, x2, y));
+            }
+            if (edgeIntersecting(y2, y3, y)) {
+                intersections.push_back(intersectionX(y2, y3, x2, x3, y));
+            }
+            if (edgeIntersecting(y3, y1, y)) {
+                intersections.push_back(intersectionX(y3, y1, x3, x1, y));
+            }
+
+            if (intersections.size() >= 2) {
+                sort(intersections.begin(), intersections.end());
+                int start = intersections[0];
+                int end = intersections.back();
+
+                for (int x = start; x <= end; ++x) {
+                    if (x >= 0 && x < BOARD_WIDTH && y >= 0 && y < BOARD_HEIGHT) {
+                        grid[y][x] = '*';
+                    }
+                }
+            }
+        }
+    }
+
+
+    void drawLines(vector<vector<char> > &grid) const {
+        Line line1(x1, y1, x2, y2, true);
+        line1.draw(grid);
+        Line line2(x2, y2, x3, y3, true);
+        line2.draw(grid);
+        Line line3(x3, y3, x1, y1, true);
+        line3.draw(grid);
+    }
 
 public:
-    Triangle(int x1, int y1, int x2, int y2, int x3, int y3)
-        : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3) {
+    Triangle(int x1, int y1, int x2, int y2, int x3, int y3, FillOption fillOption)
+        : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3), fillOption(fillOption) {
     }
 
     bool validBorder() const override {
@@ -222,17 +304,16 @@ public:
     }
 
     void draw(vector<vector<char> > &grid) const override {
-        Line line1(x1, y1, x2, y2, true);
-        line1.draw(grid);
-        Line line2(x2, y2, x3, y3, true);
-        line2.draw(grid);
-        Line line3(x3, y3, x1, y1, true);
-        line3.draw(grid);
+        drawLines(grid);
+
+        if (fillOption == FILL) {
+            scanlineAlgorithm(grid);
+        }
     }
 
     void print() const override {
         cout << "Triangle x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " x3: " << x3 << " y3: " <<
-                y3 << endl;;
+                y3 << " Fill option: " << fillOptionType(fillOption) << endl;
     }
 
     string getType() const override {
@@ -245,12 +326,14 @@ public:
     }
 };
 
+
 class ShapeCommands {
 private:
     Board board;
     map<int, shared_ptr<Shape> > shapes;
     int ID = 1;
     stack<int> shapeStack;
+    weak_ptr<Shape> select;
 
 public:
     void listShapes() const {
@@ -322,20 +405,67 @@ public:
     const map<int, shared_ptr<Shape> > &getShapes() const {
         return shapes;
     }
+
+    void selectByID(int id) {
+        for (const auto &shape: shapes) {
+            if (shape.first == id) {
+                select = shape.second;
+                shape.second->print();
+                return;
+            }
+        }
+        cout << "Shape with ID " << id << " not found." << endl;
+    }
+
+    void selectByCoordinates() {
+    }
+
+    void remove() {
+        if (auto selectedShape = select.lock()) {
+            for (auto &shape: shapes) {
+                if (shape.second == selectedShape) {
+                    int id = shape.first;
+                    cout << id << " " << shape.second->getType() << " removed" << endl;
+                    shapes.erase(id);
+                    select.reset();
+                    return;
+                }
+            }
+        } else {
+            cout << "No shape selected to remove." << endl;
+        }
+    }
+
+    void edit() {
+    }
+
+    void paint() {
+    }
+
+    void move() {
+    }
 };
 
 class ShapeParser {
 private:
     ShapeCommands &shapeCommands;
+    FillOption fillOption;
 
 public:
     ShapeParser(ShapeCommands &sc) : shapeCommands(sc) {
     }
 
     void parseAddShapes(istringstream &iss) {
-        string shapeType;
+        string fillMode, shapeType;
+        iss >> fillMode;
+        if (fillMode == "fill") {
+            fillOption = FILL;
+        } else if (fillMode == "frame") {
+            fillOption = FRAME;
+        } else {
+            throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
+        }
         iss >> shapeType;
-
         string extraArg;
 
         if (shapeType == "rectangle" || shapeType == "Rectangle") {
@@ -346,7 +476,7 @@ public:
             if (iss >> extraArg) {
                 throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
             }
-            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width));
+            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width, fillOption));
         } else if (shapeType == "circle" || shapeType == "Circle") {
             int x, y, radius;
             if (!(iss >> x >> y >> radius)) {
@@ -355,7 +485,7 @@ public:
             if (iss >> extraArg) {
                 throw invalid_argument("Too many arguments for Circle. Expected 3.");
             }
-            shapeCommands.addShape(make_shared<Circle>(x, y, radius));
+            shapeCommands.addShape(make_shared<Circle>(x, y, radius, fillOption));
         } else if (shapeType == "line" || shapeType == "Line") {
             int x1, y1, x2, y2;
             if (!(iss >> x1 >> y1 >> x2 >> y2)) {
@@ -373,7 +503,7 @@ public:
             if (iss >> extraArg) {
                 throw invalid_argument("Too many arguments for Triangle. Expected 6.");
             }
-            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3));
+            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3, fillOption));
         } else {
             throw invalid_argument("Unknown shape.");
         }
@@ -505,6 +635,12 @@ public:
                     string filePath;
                     iss >> filePath;
                     fileParser.loadBoard(filePath);
+                } else if (command == "select") {
+                    int id;
+                    iss >> id;
+                    shapeCommands.selectByID(id);
+                } else if (command == "remove") {
+                    shapeCommands.remove();
                 } else if (command == "stop") {
                     break;
                 } else {

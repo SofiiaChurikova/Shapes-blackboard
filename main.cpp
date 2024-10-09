@@ -138,6 +138,14 @@ public:
         y = newY;
     }
 
+    void setHeight(int newH) {
+        height = newH;
+    }
+
+    void setWidth(int newW) {
+        width = newW;
+    }
+
     void draw(vector<vector<char> > &grid) const override {
         char symbol = getColorSymbol();
         for (int i = 0; i < width; ++i) {
@@ -204,6 +212,10 @@ public:
 
     void setY(int newY) override {
         y = newY;
+    }
+
+    void setRadius(int newR) {
+        radius = newR;
     }
 
 
@@ -600,6 +612,43 @@ public:
             cout << "No shape selected to move." << endl;
         }
     }
+
+    void edit(istringstream &iss) {
+        if (auto selectedShape = select.lock()) {
+            int par1, par2;
+            if (iss >> par1) {
+                if (selectedShape->getType() == "Circle") {
+                    Circle *circle = static_cast<Circle *>(selectedShape.get());
+                    if (iss >> par2) {
+                        cout << "Error: invalid argument count" << endl;
+                        return;
+                    }
+                    if (par1 <= 0 || !circle->validBorder()) {
+                        cout << "Error: shape will go out of the board" << endl;
+                        return;
+                    }
+                    circle->setRadius(par1);
+                    cout << "Radius of circle changed." << endl;
+                } else if (selectedShape->getType() == "Rectangle") {
+                    Rectangle *rectangle = static_cast<Rectangle *>(selectedShape.get());
+                    if (!(iss >> par2)) {
+                        cout << "Error: invalid argument count" << endl;
+                    }
+                    if (par1 <= 0 || par2 <= 0 || !rectangle->validBorder()) {
+                        cout << "Error: shape will go out of the board" << endl;
+                        return;
+                    }
+                    rectangle->setHeight(par1);
+                    rectangle->setWidth(par2);
+                    cout << "Size of rectangle changed." << endl;
+                } else {
+                    cout << "You can not change this shape!" << endl;
+                }
+            } else {
+                cout << "Write some arguments!" << endl;
+            }
+        }
+    }
 };
 
 class ShapeParser {
@@ -813,6 +862,8 @@ public:
                     int x, y;
                     iss >> x >> y;
                     shapeCommands.move(x, y);
+                } else if (command == "edit") {
+                    shapeCommands.edit(iss);
                 } else if (command == "stop") {
                     break;
                 } else {

@@ -5,11 +5,37 @@
 #include <cmath>
 #include <stack>
 #include <fstream>
+
+
 using namespace std;
 const int BOARD_WIDTH = 80;
 const int BOARD_HEIGHT = 25;
 
 enum FillOption { FILL, FRAME };
+
+struct Color {
+    map<string, pair<string, char> > colors = {
+        {"red", {"\033[31m", 'R'}},
+        {"green", {"\033[32m", 'G'}},
+        {"yellow", {"\033[33m", 'Y'}},
+        {"blue", {"\033[34m", 'B'}},
+        {"magenta", {"\033[35m", 'M'}},
+        {"cyan", {"\033[36m", 'C'}},
+        {"white", {"\033[37m", 'W'}},
+        {"black", {"\033[30m", 'B'}}
+    };
+
+    string reset = "\033[0m";
+
+    char getSymbol(const string &color) const {
+        for (const auto &c: colors) {
+            if (c.first == color) {
+                return c.second.second;
+            }
+        }
+        return '*';
+    }
+};
 
 string fillOptionType(FillOption fillOption) {
     switch (fillOption) {
@@ -48,7 +74,26 @@ struct Board {
 };
 
 class Shape {
+protected:
+    string color;
+    char colorSymbol;
+    Color colors;
+
 public:
+    string getColor() const {
+        return color;
+    }
+
+    void setColor(const string &c) {
+        color = c;
+        colorSymbol = colors.getSymbol(c);
+    }
+
+    char getColorSymbol() const {
+        return colorSymbol;
+    }
+
+
     virtual void draw(vector<vector<char> > &grid) const = 0;
 
     virtual void print() const = 0;
@@ -59,10 +104,20 @@ public:
 
     virtual bool validBorder() const = 0;
 
+    virtual int getX() const { return 0; }
+    virtual int getY() const { return 0; }
+
+    virtual void setX(int x) {
+    }
+
+    virtual void setY(int y) {
+    }
+
 
     virtual ~Shape() {
     };
 };
+
 
 class Rectangle : public Shape {
 private:
@@ -70,32 +125,42 @@ private:
     FillOption fillOption;
 
 public:
-    Rectangle(int x, int y, int height, int width, FillOption fillOption)
+    Rectangle(int x, int y, int height, int width, FillOption fillOption, const string &colorName)
         : x(x), y(y), height(height), width(width), fillOption(fillOption) {
+        setColor(colorName);
+    }
+
+    void setX(int newX) override {
+        x = newX;
+    }
+
+    void setY(int newY) override {
+        y = newY;
     }
 
     void draw(vector<vector<char> > &grid) const override {
+        char symbol = getColorSymbol();
         for (int i = 0; i < width; ++i) {
             if (y >= 0 && y < BOARD_HEIGHT && x + i >= 0 && x + i < BOARD_WIDTH) {
-                grid[y][x + i] = '*';
+                grid[y][x + i] = symbol;
             }
             if (y + height - 1 >= 0 && y + height - 1 < BOARD_HEIGHT && x + i >= 0 && x + i < BOARD_WIDTH) {
-                grid[y + height - 1][x + i] = '*';
+                grid[y + height - 1][x + i] = symbol;
             }
         }
         for (int j = 0; j < height; ++j) {
             if (y + j >= 0 && y + j < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
-                grid[y + j][x] = '*';
+                grid[y + j][x] = symbol;
             }
             if (y + j >= 0 && y + j < BOARD_HEIGHT && x + width - 1 >= 0 && x + width - 1 < BOARD_WIDTH) {
-                grid[y + j][x + width - 1] = '*';
+                grid[y + j][x + width - 1] = symbol;
             }
         }
         if (fillOption == FILL) {
             for (int i = 1; i <= width - 1; ++i) {
                 for (int j = 1; j <= height - 1; ++j) {
                     if (y + j >= 0 && y + j < BOARD_HEIGHT && x + i >= 0 && x + i < BOARD_HEIGHT) {
-                        grid[y + j][x + i] = '*';
+                        grid[y + j][x + i] = symbol;
                     }
                 }
             }
@@ -104,7 +169,7 @@ public:
 
     void print() const override {
         cout << "Rectangle x: " << x << " y: " << y << " height: " << height << " width: " << width
-                << " Fill option: " << fillOptionType(fillOption) << endl;
+                << " Fill option: " << fillOptionType(fillOption) << " Color: " << color << endl;
     }
 
     string getType() const override {
@@ -128,20 +193,32 @@ private:
     FillOption fillOption;
 
 public:
-    Circle(int x, int y, int radius, FillOption fillOption) : x(x), y(y), radius(radius), fillOption(fillOption) {
+    Circle(int x, int y, int radius, FillOption fillOption, const string &colorName) : x(x), y(y), radius(radius),
+        fillOption(fillOption) {
+        setColor(colorName);
     }
 
+    void setX(int newX) override {
+        x = newX;
+    }
+
+    void setY(int newY) override {
+        y = newY;
+    }
+
+
     void draw(vector<vector<char> > &grid) const override {
+        char symbol = getColorSymbol();
         for (int i = 0; i < BOARD_WIDTH; ++i) {
             for (int j = 0; j < BOARD_HEIGHT; ++j) {
                 double distance = sqrt(pow(i - x, 2) + pow((j - y) * 2, 2));
                 if (fillOption == FRAME) {
                     if (fabs(distance - radius) < 0.5) {
-                        grid[j][i] = '*';
+                        grid[j][i] = symbol;
                     }
                 } else if (fillOption == FILL) {
                     if (distance <= radius) {
-                        grid[j][i] = '*';
+                        grid[j][i] = symbol;
                     }
                 }
             }
@@ -150,7 +227,7 @@ public:
 
     void print() const override {
         cout << "Circle x: " << x << " y: " << y << " radius: " << radius << " Fill option: " <<
-                fillOptionType(fillOption) << endl;
+                fillOptionType(fillOption) << " Color: " << color << endl;
     }
 
     string getType() const override {
@@ -175,11 +252,23 @@ private:
     bool isTriangle;
 
 public:
-    Line(int x1, int y1, int x2, int y2, bool isTriangle = false)
+    Line(int x1, int y1, int x2, int y2, bool isTriangle, const string &colorName)
         : x1(x1), y1(y1), x2(x2), y2(y2), isTriangle(isTriangle) {
+        setColor(colorName);
     }
 
+    int getX() const override { return x1; }
+    int getY() const override { return y1; }
+    void setX(int newX) override { x1 = newX; }
+    void setY(int newY) override { y1 = newY; }
+
+    int getX2() const { return x2; }
+    int getY2() const { return y2; }
+    void setX2(int newX2) { x2 = newX2; }
+    void setY2(int newY2) { y2 = newY2; }
+
     void draw(vector<vector<char> > &grid) const override {
+        char symbol = getColorSymbol();
         int deltaX = x2 - x1;
         int deltaY = y2 - y1;
         int steps = max(abs(deltaX), abs(deltaY));
@@ -210,7 +299,7 @@ public:
             }
 
             if (gridX >= 0 && gridX < BOARD_WIDTH && gridY >= 0 && gridY < BOARD_HEIGHT) {
-                grid[gridY][gridX] = '*';
+                grid[gridY][gridX] = symbol;
             }
 
             prevX = gridX;
@@ -222,7 +311,7 @@ public:
     }
 
     void print() const override {
-        cout << "Line x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << endl;
+        cout << "Line x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " Color: " << color << endl;
     }
 
     string getType() const override {
@@ -252,7 +341,7 @@ private:
         return x1 + (x2 - x1) * (y - y1) / (y2 - y1);
     }
 
-    void scanlineAlgorithm(vector<vector<char> > &grid) const {
+    void scanlineAlgorithm(vector<vector<char> > &grid, char symbol) const {
         int yMin = min({y1, y2, y3});
         int yMax = max({y1, y2, y3});
 
@@ -275,7 +364,7 @@ private:
 
                 for (int x = start; x <= end; ++x) {
                     if (x >= 0 && x < BOARD_WIDTH && y >= 0 && y < BOARD_HEIGHT) {
-                        grid[y][x] = '*';
+                        grid[y][x] = symbol;
                     }
                 }
             }
@@ -283,19 +372,36 @@ private:
     }
 
 
-    void drawLines(vector<vector<char> > &grid) const {
-        Line line1(x1, y1, x2, y2, true);
+    void drawLines(vector<vector<char> > &grid, char symbol) const {
+        Line line1(x1, y1, x2, y2, true, color);
         line1.draw(grid);
-        Line line2(x2, y2, x3, y3, true);
+        Line line2(x2, y2, x3, y3, true, color);
         line2.draw(grid);
-        Line line3(x3, y3, x1, y1, true);
+        Line line3(x3, y3, x1, y1, true, color);
         line3.draw(grid);
     }
 
 public:
-    Triangle(int x1, int y1, int x2, int y2, int x3, int y3, FillOption fillOption)
+    Triangle(int x1, int y1, int x2, int y2, int x3, int y3, FillOption fillOption, const string &colorName)
         : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3), fillOption(fillOption) {
+        setColor(colorName);
     }
+
+    int getX() const override { return x1; }
+    int getY() const override { return y1; }
+    void setX(int newX) override { x1 = newX; }
+    void setY(int newY) override { y1 = newY; }
+
+    int getX2() const { return x2; }
+    int getY2() const { return y2; }
+    void setX2(int newX2) { x2 = newX2; }
+    void setY2(int newY2) { y2 = newY2; }
+
+    int getX3() const { return x3; }
+    int getY3() const { return y3; }
+    void setX3(int newX3) { x3 = newX3; }
+    void setY3(int newY3) { y3 = newY3; }
+
 
     bool validBorder() const override {
         return (x1 < BOARD_WIDTH && x1 >= 0 && y1 < BOARD_HEIGHT && y1 >= 0) ||
@@ -304,16 +410,17 @@ public:
     }
 
     void draw(vector<vector<char> > &grid) const override {
-        drawLines(grid);
+        char symbol = getColorSymbol();
+        drawLines(grid, symbol);
 
         if (fillOption == FILL) {
-            scanlineAlgorithm(grid);
+            scanlineAlgorithm(grid, symbol);
         }
     }
 
     void print() const override {
         cout << "Triangle x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " x3: " << x3 << " y3: " <<
-                y3 << " Fill option: " << fillOptionType(fillOption) << endl;
+                y3 << " Fill option: " << fillOptionType(fillOption) << " Color: " << color << endl;
     }
 
     string getType() const override {
@@ -439,10 +546,59 @@ public:
     void edit() {
     }
 
-    void paint() {
+    void paint(string color) {
+        if (auto selectedShape = select.lock()) {
+            for (auto &shape: shapes) {
+                if (shape.second == selectedShape) {
+                    shape.second->setColor(color);
+                    cout << "ID: " << shape.first << " Shape: " << shape.second->getType() << " Color: " <<
+                            shape.second->getColor() << endl;
+                    return;
+                }
+            }
+        } else {
+            cout << "No shape selected to paint." << endl;
+        }
     }
 
-    void move() {
+    void move(int x, int y) {
+        if (auto selectedShape = select.lock()) {
+            for (auto &shape: shapes) {
+                if (shape.second == selectedShape) {
+                    int deltaX, deltaY;
+
+                    if (shape.second->getType() == "Line") {
+                        deltaX = x - shape.second->getX();
+                        deltaY = y - shape.second->getY();
+                        shape.second->setX(x);
+                        shape.second->setY(y);
+
+                        Line *line = static_cast<Line *>(shape.second.get());
+                        line->setX2(line->getX2() + deltaX);
+                        line->setY2(line->getY2() + deltaY);
+                    } else if (shape.second->getType() == "Triangle") {
+                        deltaX = x - shape.second->getX();
+                        deltaY = y - shape.second->getY();
+                        shape.second->setX(x);
+                        shape.second->setY(y);
+
+                        Triangle *triangle = static_cast<Triangle *>(shape.second.get());
+                        triangle->setX2(triangle->getX2() + deltaX);
+                        triangle->setY2(triangle->getY2() + deltaY);
+                        triangle->setX3(triangle->getX3() + deltaX);
+                        triangle->setY3(triangle->getY3() + deltaY);
+                    } else {
+                        shape.second->setX(x);
+                        shape.second->setY(y);
+                    }
+
+                    cout << "ID: " << shape.first << " Shape: " << shape.second->getType() << " moved." << endl;
+                    return;
+                }
+            }
+        } else {
+            cout << "No shape selected to move." << endl;
+        }
     }
 };
 
@@ -456,36 +612,53 @@ public:
     }
 
     void parseAddShapes(istringstream &iss) {
-        string fillMode, shapeType;
-        iss >> fillMode;
-        if (fillMode == "fill") {
-            fillOption = FILL;
-        } else if (fillMode == "frame") {
-            fillOption = FRAME;
-        } else {
-            throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
-        }
+        string shapeType, shapeColor;
         iss >> shapeType;
+        iss >> shapeColor;
+
         string extraArg;
 
-        if (shapeType == "rectangle" || shapeType == "Rectangle") {
-            int x, y, height, width;
-            if (!(iss >> x >> y >> height >> width)) {
-                throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
+        if (shapeType == "rectangle" || shapeType == "Rectangle" || shapeType == "circle" || shapeType == "Circle" ||
+            shapeType == "triangle" || shapeType == "Triangle") {
+            string fillMode;
+            iss >> fillMode;
+
+            if (fillMode == "fill") {
+                fillOption = FILL;
+            } else if (fillMode == "frame") {
+                fillOption = FRAME;
+            } else {
+                throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
             }
-            if (iss >> extraArg) {
-                throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
+
+            if (shapeType == "rectangle" || shapeType == "Rectangle") {
+                int x, y, height, width;
+                if (!(iss >> x >> y >> height >> width)) {
+                    throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
+                }
+                if (iss >> extraArg) {
+                    throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
+                }
+                shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width, fillOption, shapeColor));
+            } else if (shapeType == "circle" || shapeType == "Circle") {
+                int x, y, radius;
+                if (!(iss >> x >> y >> radius)) {
+                    throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
+                }
+                if (iss >> extraArg) {
+                    throw invalid_argument("Too many arguments for Circle. Expected 3.");
+                }
+                shapeCommands.addShape(make_shared<Circle>(x, y, radius, fillOption, shapeColor));
+            } else if (shapeType == "triangle" || shapeType == "Triangle") {
+                int x1, y1, x2, y2, x3, y3;
+                if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
+                    throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
+                }
+                if (iss >> extraArg) {
+                    throw invalid_argument("Too many arguments for Triangle. Expected 6.");
+                }
+                shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3, fillOption, shapeColor));
             }
-            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width, fillOption));
-        } else if (shapeType == "circle" || shapeType == "Circle") {
-            int x, y, radius;
-            if (!(iss >> x >> y >> radius)) {
-                throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
-            }
-            if (iss >> extraArg) {
-                throw invalid_argument("Too many arguments for Circle. Expected 3.");
-            }
-            shapeCommands.addShape(make_shared<Circle>(x, y, radius, fillOption));
         } else if (shapeType == "line" || shapeType == "Line") {
             int x1, y1, x2, y2;
             if (!(iss >> x1 >> y1 >> x2 >> y2)) {
@@ -494,16 +667,7 @@ public:
             if (iss >> extraArg) {
                 throw invalid_argument("Too many arguments for Line. Expected 4.");
             }
-            shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2));
-        } else if (shapeType == "triangle" || shapeType == "Triangle") {
-            int x1, y1, x2, y2, x3, y3;
-            if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
-                throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
-            }
-            if (iss >> extraArg) {
-                throw invalid_argument("Too many arguments for Triangle. Expected 6.");
-            }
-            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3, fillOption));
+            shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2, false, shapeColor));
         } else {
             throw invalid_argument("Unknown shape.");
         }
@@ -641,6 +805,14 @@ public:
                     shapeCommands.selectByID(id);
                 } else if (command == "remove") {
                     shapeCommands.remove();
+                } else if (command == "paint") {
+                    string color;
+                    iss >> color;
+                    shapeCommands.paint(color);
+                } else if (command == "move") {
+                    int x, y;
+                    iss >> x >> y;
+                    shapeCommands.move(x, y);
                 } else if (command == "stop") {
                     break;
                 } else {

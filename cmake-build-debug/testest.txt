@@ -1,0 +1,4 @@
+ID: 1 Type: Rectangle 76 10 10 5
+ID: 2 Type: Circle 75 10 10
+ID: 3 Type: Line 75 10 85 20
+ID: 4 Type: Triangle 70 10 75 20 85 15

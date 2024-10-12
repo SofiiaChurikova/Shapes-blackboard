@@ -21,11 +21,21 @@ struct Color {
         {"blue", {"\033[34m", 'B'}},
         {"magenta", {"\033[35m", 'M'}},
         {"cyan", {"\033[36m", 'C'}},
-        {"white", {"\033[37m", 'W'}},
-        {"black", {"\033[30m", 'B'}}
+        {"white", {"\033[37m", 'W'}}
     };
 
     string reset = "\033[0m";
+
+    string getColorCode(const string &color) const {
+        if (colors.find(color) != colors.end()) {
+            return colors.at(color).first;
+        }
+        return reset;
+    }
+
+    string applyColor(const string &color, char symbol) const {
+        return getColorCode(color) + symbol + reset;
+    }
 
     char getSymbol(const string &color) const {
         for (const auto &c: colors) {
@@ -36,6 +46,7 @@ struct Color {
         return '*';
     }
 };
+
 
 string fillOptionType(FillOption fillOption) {
     switch (fillOption) {
@@ -51,14 +62,38 @@ string fillOptionType(FillOption fillOption) {
 
 struct Board {
     vector<vector<char> > grid;
+    Color colors;
 
     Board() : grid(BOARD_HEIGHT, vector<char>(BOARD_WIDTH, ' ')) {
     }
+    string applyColorBasedOnSymbol(char symbol) {
+        switch (symbol) {
+            case 'R':
+                return colors.applyColor("red", 'R');
+            case 'G':
+                return colors.applyColor("green", 'G');
+            case 'B':
+                return colors.applyColor("blue", 'B');
+            case 'Y':
+                return colors.applyColor("yellow", 'Y');
+            case 'M':
+                return colors.applyColor("magenta", 'M');
+            case 'C':
+                return colors.applyColor("cyan", 'C');
+            case 'W':
+                return colors.applyColor("white", 'W');
+            case ' ':
+                return string(1, ' ');
+            default:
+                    return colors.applyColor("white", symbol);
+        }
+    }
 
     void print() {
-        for (auto &row: grid) {
-            for (char c: row) {
-                cout << c;
+        for (auto &row : grid) {
+            for (char c : row) {
+                string coloredSymbol = applyColorBasedOnSymbol(c);
+                cout << coloredSymbol;
             }
             cout << "\n";
         }

@@ -1,0 +1,1 @@
+ID: 1 Type: Rectangle 5 5 10 10 FillMode: FRAME Color: red

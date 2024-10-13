@@ -33,7 +33,7 @@ struct Color {
         return reset;
     }
 
-    string applyColor(const string &color, char symbol) const {
+    string setColor(const string &color, char symbol) const {
         return getColorCode(color) + symbol + reset;
     }
 
@@ -66,33 +66,34 @@ struct Board {
 
     Board() : grid(BOARD_HEIGHT, vector<char>(BOARD_WIDTH, ' ')) {
     }
-    string applyColorBasedOnSymbol(char symbol) {
+
+    string setColorBasedOnSymbol(char symbol) {
         switch (symbol) {
             case 'R':
-                return colors.applyColor("red", 'R');
+                return colors.setColor("red", 'R');
             case 'G':
-                return colors.applyColor("green", 'G');
+                return colors.setColor("green", 'G');
             case 'B':
-                return colors.applyColor("blue", 'B');
+                return colors.setColor("blue", 'B');
             case 'Y':
-                return colors.applyColor("yellow", 'Y');
+                return colors.setColor("yellow", 'Y');
             case 'M':
-                return colors.applyColor("magenta", 'M');
+                return colors.setColor("magenta", 'M');
             case 'C':
-                return colors.applyColor("cyan", 'C');
+                return colors.setColor("cyan", 'C');
             case 'W':
-                return colors.applyColor("white", 'W');
+                return colors.setColor("white", 'W');
             case ' ':
                 return string(1, ' ');
             default:
-                    return colors.applyColor("white", symbol);
+                return colors.setColor("white", symbol);
         }
     }
 
     void print() {
-        for (auto &row : grid) {
-            for (char c : row) {
-                string coloredSymbol = applyColorBasedOnSymbol(c);
+        for (auto &row: grid) {
+            for (char c: row) {
+                string coloredSymbol = setColorBasedOnSymbol(c);
                 cout << coloredSymbol;
             }
             cout << "\n";
@@ -182,6 +183,10 @@ public:
         width = newW;
     }
 
+    FillOption getFillOption() const {
+        return fillOption;
+    }
+
     void draw(vector<vector<char> > &grid) override {
         char symbol = getColorSymbol();
         for (int i = 0; i < width; ++i) {
@@ -264,6 +269,9 @@ public:
         radius = newR;
     }
 
+    FillOption getFillOption() const {
+        return fillOption;
+    }
 
     void draw(vector<vector<char> > &grid) override {
         char symbol = getColorSymbol();
@@ -502,6 +510,10 @@ public:
         : x1(x1), y1(y1), x2(x2), y2(y2), x3(x3), y3(y3), fillOption(fillOption) {
         setColor(colorName);
         customSymbol = getColorSymbol();
+    }
+
+    FillOption getFillOption() const {
+        return fillOption;
     }
 
     int getX() const override { return x1; }
@@ -749,6 +761,7 @@ public:
             cout << "No shape selected to move." << endl;
         }
     }
+
     void edit(istringstream &iss) {
         if (auto selectedShape = select.lock()) {
             if (selectedShape->getType() == "Line") {
@@ -760,8 +773,7 @@ public:
                 } else {
                     cout << "Please provide a valid symbol for the line!" << endl;
                 }
-            }
-            else if (selectedShape->getType() == "Triangle") {
+            } else if (selectedShape->getType() == "Triangle") {
                 char newSymbol;
                 if (iss >> newSymbol) {
                     Triangle *triangle = static_cast<Triangle *>(selectedShape.get());
@@ -770,8 +782,7 @@ public:
                 } else {
                     cout << "Please provide a valid symbol for the triangle!" << endl;
                 }
-            }
-            else if (selectedShape->getType() == "Circle" || selectedShape->getType() == "Rectangle") {
+            } else if (selectedShape->getType() == "Circle" || selectedShape->getType() == "Rectangle") {
                 int par1, par2;
                 if (iss >> par1) {
                     if (selectedShape->getType() == "Circle") {
@@ -786,8 +797,7 @@ public:
                         } else {
                             cout << "Error: invalid argument count for circle." << endl;
                         }
-                    }
-                    else if (selectedShape->getType() == "Rectangle") {
+                    } else if (selectedShape->getType() == "Rectangle") {
                         Rectangle *rectangle = static_cast<Rectangle *>(selectedShape.get());
                         if (iss >> par2) {
                             if (par1 > 0 && par2 > 0 && rectangle->validBorder()) {
@@ -804,14 +814,13 @@ public:
                 } else {
                     cout << "Error: provide valid params for the shape." << endl;
                 }
-            } else {
-                cout << "You cannot edit this shape!" << endl;
             }
         } else {
             cout << "No shape selected for editing." << endl;
         }
     }
 };
+
 
 class ShapeParser {
 private:
@@ -831,18 +840,20 @@ public:
     }
 
     void parseAddShapes(istringstream &iss) {
-        string shapeType, shapeColor;
+        string shapeType;
         iss >> shapeType;
-        toLowerCase(shapeType);
-        iss >> shapeColor;
-
+        shapeType = toLowerCase(shapeType);
         string extraArg;
 
-        if (shapeType == "rectangle" || shapeType == "circle" ||
-            shapeType == "triangle") {
-            string fillMode;
+        if (shapeType == "rectangle") {
+            int x, y, height, width;
+            string shapeColor, fillMode;
+            if (!(iss >> x >> y >> height >> width)) {
+                throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
+            }
+            iss >> shapeColor;
             iss >> fillMode;
-
+            fillMode = toLowerCase(fillMode);
             if (fillMode == "fill") {
                 fillOption = FILL;
             } else if (fillMode == "frame") {
@@ -850,41 +861,60 @@ public:
             } else {
                 throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
             }
-
-            if (shapeType == "rectangle") {
-                int x, y, height, width;
-                if (!(iss >> x >> y >> height >> width)) {
-                    throw invalid_argument("Invalid number of arguments for Rectangle. Expected 4.");
-                }
-                if (iss >> extraArg) {
-                    throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
-                }
-                shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width, fillOption, shapeColor));
-            } else if (shapeType == "circle") {
-                int x, y, radius;
-                if (!(iss >> x >> y >> radius)) {
-                    throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
-                }
-                if (iss >> extraArg) {
-                    throw invalid_argument("Too many arguments for Circle. Expected 3.");
-                }
-                shapeCommands.addShape(make_shared<Circle>(x, y, radius, fillOption, shapeColor));
-            } else if (shapeType == "triangle") {
-                int x1, y1, x2, y2, x3, y3;
-                if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
-                    throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
-                }
-                if (iss >> extraArg) {
-                    throw invalid_argument("Too many arguments for Triangle. Expected 6.");
-                }
-                shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3, fillOption, shapeColor));
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Rectangle. Expected 4.");
             }
+            shapeCommands.addShape(make_shared<Rectangle>(x, y, height, width, fillOption, shapeColor));
+        } else if (shapeType == "circle") {
+            int x, y, radius;
+            string shapeColor, fillMode;
+            if (!(iss >> x >> y >> radius)) {
+                throw invalid_argument("Invalid number of arguments for Circle. Expected 3.");
+            }
+            iss >> shapeColor;
+            iss >> fillMode;
+            fillMode = toLowerCase(fillMode);
+            if (fillMode == "fill") {
+                fillOption = FILL;
+            } else if (fillMode == "frame") {
+                fillOption = FRAME;
+            } else {
+                throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
+            }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Circle. Expected 3.");
+            }
+            shapeCommands.addShape(make_shared<Circle>(x, y, radius, fillOption, shapeColor));
+        } else if (shapeType == "triangle") {
+            int x1, y1, x2, y2, x3, y3;
+            string shapeColor, fillMode;
+
+            if (!(iss >> x1 >> y1 >> x2 >> y2 >> x3 >> y3)) {
+                throw invalid_argument("Invalid number of arguments for Triangle. Expected 6.");
+            }
+            iss >> shapeColor;
+            iss >> fillMode;
+            fillMode = toLowerCase(fillMode);
+            if (fillMode == "fill") {
+                fillOption = FILL;
+            } else if (fillMode == "frame") {
+                fillOption = FRAME;
+            } else {
+                throw invalid_argument("Incorrect form! Use 'fill' or 'frame'");
+            }
+            if (iss >> extraArg) {
+                throw invalid_argument("Too many arguments for Triangle. Expected 6.");
+            }
+            shapeCommands.addShape(make_shared<Triangle>(x1, y1, x2, y2, x3, y3, fillOption, shapeColor));
         } else if (shapeType == "line") {
             int x1, y1, x2, y2;
+            string shapeColor;
+
             if (!(iss >> x1 >> y1 >> x2 >> y2)) {
                 throw invalid_argument("Invalid number of arguments for Line. Expected 4.");
             }
-            if (iss >> extraArg) {
+            iss >> shapeColor;
+            if (iss >> extraArg && extraArg != "none") {
                 throw invalid_argument("Too many arguments for Line. Expected 4.");
             }
             shapeCommands.addShape(make_shared<Line>(x1, y1, x2, y2, false, shapeColor));
@@ -912,15 +942,27 @@ public:
         for (const auto &shape: shapeCommands.getShapes()) {
             int ID = shape.first;
             shared_ptr<Shape> sh = shape.second;
-            file << "ID: " << ID << " Type: " << sh->getType() << ' ' << sh->getParams() << endl;
+            string fillMode = "none";
+
+            if (auto rectangle = dynamic_cast<Rectangle *>(sh.get())) {
+                fillMode = fillOptionType(rectangle->getFillOption());
+            } else if (auto circle = dynamic_cast<Circle *>(sh.get())) {
+                fillMode = fillOptionType(circle->getFillOption());
+            } else if (auto triangle = dynamic_cast<Triangle *>(sh.get())) {
+                fillMode = fillOptionType(triangle->getFillOption());
+            }
+
+            file << "ID: " << ID << " Type: " << sh->getType() << " " << sh->getParams()
+                    << " Color: " << sh->getColor() << " FillMode: " << fillMode << endl;
         }
         file.close();
     }
 
+
     void loadBoard(const string &filePath) {
         cout <<
                 "Be careful! If there are any figures on the board, they will be cleared, even if an error occurs. Do you "
-                "want to continue?" << endl;
+                << "want to continue?" << endl;
         string answer;
         getline(cin, answer);
 
@@ -940,7 +982,7 @@ public:
         bool isValid = true;
         while (getline(file, line)) {
             istringstream iss(line);
-            string idText, typeText, shapeType;
+            string idText, typeText, shapeType, colorText, color, fillText, fillMode;
             int id;
 
             if (!(iss >> idText >> id >> typeText >> shapeType)) {
@@ -949,15 +991,19 @@ public:
                 break;
             }
             string shapeParams;
-            getline(iss, shapeParams);
-            if (shapeParams.empty()) {
-                cout << "Invalid shape parameters in file: " << line << endl;
+            if (shapeType == "Circle" || shapeType == "Rectangle" || shapeType == "Triangle" || shapeType == "Line") {
+                getline(iss, shapeParams, 'C');
+                iss.seekg(-1, ios_base::cur);
+            }
+
+            if (!(iss >> colorText >> color >> fillText >> fillMode)) {
+                cout << "Invalid file format: " << line << endl;
                 isValid = false;
                 break;
             }
 
             try {
-                istringstream shapeCommand(shapeType + " " + shapeParams);
+                istringstream shapeCommand(shapeType + " " + shapeParams + " " + color + " " + fillMode);
                 shapeParser.parseAddShapes(shapeCommand);
             } catch (const exception &e) {
                 cout << "Error: " << e.what() << endl;
@@ -968,6 +1014,7 @@ public:
 
         if (!isValid) {
             shapeCommands.clearShapes();
+            cout << "Failed to load shapes. Board cleared." << endl;
         } else {
             cout << "Board loaded from " << filePath << endl;
         }

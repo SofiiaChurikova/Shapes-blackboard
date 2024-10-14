@@ -1,0 +1,4 @@
+ID: 1 Type: Rectangle 12 12 4 10 Color: green FillMode: FRAME
+ID: 2 Type: Circle 12 12 5 Color: blue FillMode: FRAME
+ID: 3 Type: Triangle 1 4 5 10 12 4 Color: red FillMode: FILL
+ID: 4 Type: Circle 20 20 5 Color: yellow FillMode: FILL

@@ -767,7 +767,7 @@ public:
             if (selectedShape->getType() == "Line") {
                 char newSymbol;
                 if (iss >> newSymbol) {
-                    Line *line = static_cast<Line *>(selectedShape.get());
+                    Line *line = dynamic_cast<Line *>(selectedShape.get());
                     line->setCustomSymbol(newSymbol);
                     cout << "Line symbol changed to '" << newSymbol << "'." << endl;
                 } else {
@@ -776,7 +776,7 @@ public:
             } else if (selectedShape->getType() == "Triangle") {
                 char newSymbol;
                 if (iss >> newSymbol) {
-                    Triangle *triangle = static_cast<Triangle *>(selectedShape.get());
+                    auto *triangle = dynamic_cast<Triangle *>(selectedShape.get());
                     triangle->setCustomSymbol(newSymbol);
                     cout << "Triangle symbol changed to '" << newSymbol << "'." << endl;
                 } else {
@@ -786,7 +786,7 @@ public:
                 int par1, par2;
                 if (iss >> par1) {
                     if (selectedShape->getType() == "Circle") {
-                        Circle *circle = static_cast<Circle *>(selectedShape.get());
+                        auto *circle = dynamic_cast<Circle *>(selectedShape.get());
                         if (!(iss >> par2)) {
                             if (par1 > 0 && circle->validBorder()) {
                                 circle->setRadius(par1);
@@ -798,7 +798,7 @@ public:
                             cout << "Error: invalid argument count for circle." << endl;
                         }
                     } else if (selectedShape->getType() == "Rectangle") {
-                        Rectangle *rectangle = static_cast<Rectangle *>(selectedShape.get());
+                        auto *rectangle = dynamic_cast<Rectangle *>(selectedShape.get());
                         if (iss >> par2) {
                             if (par1 > 0 && par2 > 0 && rectangle->validBorder()) {
                                 rectangle->setHeight(par1);
